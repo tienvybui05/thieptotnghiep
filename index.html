@@ -1705,6 +1705,9 @@
           }, 1100);
         }, 300);
 
+        // Kích hoạt tự động lướt xuống từ từ
+        startAutoScroll();
+
       }, 750);
     }
 
@@ -1895,6 +1898,75 @@
         if (waves) waves.classList.remove('playing');
       }
     }
+
+    // 8. TỰ ĐỘNG LƯỚT XUỐNG TỪ TỪ (AUTO-SCROLL) KHI KHÔNG CHẠM VÀO MÀN HÌNH
+    let autoScrollRaf = null;
+    let isAutoScrolling = false;
+    let autoScrollPaused = false;
+    let resumeScrollTimeout = null;
+    let hasReachedBottom = false;
+
+    function startAutoScroll() {
+      // Đợi 2.8 giây sau khi mở thiệp để khách ngắm vòng xoay ảnh và hiệu ứng nón cử nhân
+      setTimeout(() => {
+        isAutoScrolling = true;
+        autoScrollLoop();
+      }, 2800);
+    }
+
+    function autoScrollLoop() {
+      if (!isAutoScrolling || autoScrollPaused) return;
+
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      if (window.scrollY >= maxScroll - 8) {
+        hasReachedBottom = true;
+        isAutoScrolling = false;
+        return;
+      }
+
+      // Cuộn từ từ êm ái (~0.75px mỗi frame)
+      window.scrollBy(0, 0.75);
+      autoScrollRaf = requestAnimationFrame(autoScrollLoop);
+    }
+
+    function pauseAutoScroll() {
+      if (!isAutoScrolling) return;
+      autoScrollPaused = true;
+      if (autoScrollRaf) cancelAnimationFrame(autoScrollRaf);
+
+      clearTimeout(resumeScrollTimeout);
+      // Nếu người dùng không chạm màn hình trong 4.5 giây và chưa chạm đáy, tự động lướt tiếp
+      resumeScrollTimeout = setTimeout(() => {
+        const activeTag = document.activeElement ? document.activeElement.tagName : '';
+        if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
+
+        if (!hasReachedBottom) {
+          autoScrollPaused = false;
+          autoScrollLoop();
+        }
+      }, 4500);
+    }
+
+    function stopAutoScrollPermanently() {
+      isAutoScrolling = false;
+      autoScrollPaused = true;
+      if (autoScrollRaf) cancelAnimationFrame(autoScrollRaf);
+      clearTimeout(resumeScrollTimeout);
+    }
+
+    // Lắng nghe sự kiện người dùng chạm hoặc cuộn thủ công để tạm dừng tự lướt
+    const userScrollEvents = ['touchstart', 'touchmove', 'wheel', 'mousedown', 'pointerdown'];
+    userScrollEvents.forEach(evt => {
+      window.addEventListener(evt, pauseAutoScroll, { passive: true });
+    });
+
+    // Nếu người dùng bấm vào các ô nhập dữ liệu của form, dừng hẳn tự động cuộn
+    window.addEventListener('DOMContentLoaded', () => {
+      const rsvpInputs = document.querySelectorAll('#rsvpForm input, #rsvpForm textarea');
+      rsvpInputs.forEach(input => {
+        input.addEventListener('focus', stopAutoScrollPermanently);
+      });
+    });
   </script>
 </body>
 
