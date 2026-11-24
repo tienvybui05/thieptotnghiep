@@ -64,7 +64,7 @@
       width: 100%;
       height: 100%;
       pointer-events: none;
-      z-index: 1;
+      z-index: 80; /* HIỆU ỨNG RƠI PHỦ LÊN TRÊN THIỆP */
       overflow: hidden;
     }
 
@@ -275,6 +275,59 @@
     .envelope-box.opened .wax-seal {
       opacity: 0;
       transform: translateX(-50%) scale(0.3) rotate(90deg);
+    }
+
+    
+    /* TẤM ẢNH NHỎ POLAROID GÓC DƯỚI BÊN PHẢI PHONG BÌ */
+    .envelope-mini-badge {
+      position: absolute;
+      bottom: -16px;
+      right: -10px;
+      z-index: 8;
+      background: #ffffff;
+      padding: 5px 5px 6px 5px;
+      border-radius: 9px;
+      box-shadow: 0 8px 24px rgba(20, 42, 69, 0.22), 0 2px 6px rgba(0, 0, 0, 0.08);
+      transform: rotate(8deg);
+      cursor: pointer;
+      transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+      border: 2px solid #ffffff;
+      animation: miniBadgeFloat 4s ease-in-out infinite alternate;
+    }
+
+    @keyframes miniBadgeFloat {
+      0% { transform: rotate(7deg) translateY(0px); }
+      100% { transform: rotate(9deg) translateY(-4px); }
+    }
+
+    .envelope-mini-badge:hover {
+      transform: rotate(0deg) scale(1.12);
+      box-shadow: 0 12px 30px rgba(61, 114, 168, 0.35);
+    }
+
+    .mini-badge-frame {
+      width: 64px;
+      height: 64px;
+      border-radius: 7px;
+      overflow: hidden;
+      background: #f0f4f8;
+    }
+
+    .mini-badge-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .mini-badge-caption {
+      font-family: var(--font-bickham);
+      font-size: 14.5px;
+      color: var(--primary-blue);
+      text-align: center;
+      margin-top: 2px;
+      line-height: 1.1;
+      font-weight: 600;
     }
 
     .open-hint-pill {
@@ -1354,9 +1407,17 @@
       <div class="envelope-flap"></div>
       <div class="wax-seal" title="Chạm để mở thiệp"></div>
       <div class="envelope-pocket"></div>
+
+      <!-- TẤM HÌNH NHỎ GÓC DƯỚI BÊN PHẢI LÁ THƯ -->
+      <div class="envelope-mini-badge" onclick="openInvitation()" title="Hoàng Trâm ✨">
+        <div class="mini-badge-frame">
+          <img src="images/tram-childhood.jpg" alt="Hoàng Trâm" class="mini-badge-img">
+        </div>
+        <div class="mini-badge-caption">Trâm 🎓</div>
+      </div>
     </div>
     <div class="open-hint-pill" onclick="openInvitation()">
-      <span>✨ Chạm Vào Phong Bì Để Mở Thiệp ✨</span>
+      <span>✨ Chạm Vào Phong Bì Để Mở Thiệp</span>
     </div>
   </div>
 
@@ -1417,7 +1478,7 @@
       <div class="host-role">Lễ Trao Bằng Tốt Nghiệp</div>
 
       <div class="youth-quote">
-        “Thương mời bạn/anh/chị đến dự lễ tốt nghiệp của mình sắp tới của mình.”
+        “Thương mời bạn/anh/chị đến dự lễ tốt nghiệp của mình sắp tới.”
       </div>
 
       <!-- KHỐI NGÀY GIỜ NHƯ CŨ (THÁNG 12 • 08 • 11:30) -->
@@ -1547,7 +1608,7 @@
           </p>
           <p class="reflection-p">
             Cảm ơn gia đình, bạn bè và anh chị em thân iu đã luôn quan tâm, giúp đỡ và đồng hành. Chính những sự hỗ trợ
-            và chia sẻ ấy đã khiến hành trình đại học của mình trở nên trọn vẹn.
+            và chia sẻ ấy đã khiến hành trình này của mình trở nên trọn vẹn.
           </p>
           <p class="reflection-p">
             Tấm bằng tốt nghiệp hôm nay không chỉ là kết quả của những năm tháng nỗ lực, mà còn là cột mốc mở ra một
@@ -1899,34 +1960,52 @@
       }
     }
 
-    // 8. TỰ ĐỘNG LƯỚT XUỐNG TỪ TỪ (AUTO-SCROLL) KHI KHÔNG CHẠM VÀO MÀN HÌNH
+    // 8. TỰ ĐỘNG LƯỚT XUỐNG SIÊU MƯỢT (SMOOTH TIME-NORMALIZED AUTO-SCROLL)
     let autoScrollRaf = null;
     let isAutoScrolling = false;
     let autoScrollPaused = false;
     let resumeScrollTimeout = null;
     let hasReachedBottom = false;
+    let lastScrollTime = 0;
+    let currentScrollPos = 0;
+    const SCROLL_SPEED = 42; // Tốc độ cuộn: 42 pixels / giây (cực kỳ êm ái, mượt mà, không giật khấc)
 
     function startAutoScroll() {
-      // Đợi 2.8 giây sau khi mở thiệp để khách ngắm vòng xoay ảnh và hiệu ứng nón cử nhân
+      // Đợi 2.5 giây sau khi mở thiệp để khách thưởng thức âm nhạc và vòng xoay ảnh 3D
       setTimeout(() => {
         isAutoScrolling = true;
-        autoScrollLoop();
-      }, 2800);
+        autoScrollPaused = false;
+        currentScrollPos = window.scrollY;
+        lastScrollTime = performance.now();
+        autoScrollRaf = requestAnimationFrame(smoothAutoScrollLoop);
+      }, 2500);
     }
 
-    function autoScrollLoop() {
+    function smoothAutoScrollLoop(currentTime) {
       if (!isAutoScrolling || autoScrollPaused) return;
 
+      if (!lastScrollTime) lastScrollTime = currentTime;
+      const deltaTime = (currentTime - lastScrollTime) / 1000;
+      lastScrollTime = currentTime;
+
+      // Giới hạn deltaTime tránh bước nhảy lớn nếu tab bị ẩn
+      const safeDelta = Math.min(deltaTime, 0.1);
+
+      // Đồng bộ với vị trí cuộn thực tế hiện tại
+      const actualScroll = window.scrollY;
       const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-      if (window.scrollY >= maxScroll - 8) {
+
+      if (actualScroll >= maxScroll - 6) {
         hasReachedBottom = true;
         isAutoScrolling = false;
         return;
       }
 
-      // Cuộn từ từ êm ái (~0.75px mỗi frame)
-      window.scrollBy(0, 0.75);
-      autoScrollRaf = requestAnimationFrame(autoScrollLoop);
+      // Tăng vị trí cuộn liên tục theo thời gian thực (subpixel precision)
+      currentScrollPos = Math.max(actualScroll, currentScrollPos) + SCROLL_SPEED * safeDelta;
+      window.scrollTo(0, currentScrollPos);
+
+      autoScrollRaf = requestAnimationFrame(smoothAutoScrollLoop);
     }
 
     function pauseAutoScroll() {
@@ -1934,7 +2013,9 @@
       autoScrollPaused = true;
       if (autoScrollRaf) cancelAnimationFrame(autoScrollRaf);
 
+      currentScrollPos = window.scrollY;
       clearTimeout(resumeScrollTimeout);
+
       // Nếu người dùng không chạm màn hình trong 4.5 giây và chưa chạm đáy, tự động lướt tiếp
       resumeScrollTimeout = setTimeout(() => {
         const activeTag = document.activeElement ? document.activeElement.tagName : '';
@@ -1942,7 +2023,9 @@
 
         if (!hasReachedBottom) {
           autoScrollPaused = false;
-          autoScrollLoop();
+          currentScrollPos = window.scrollY;
+          lastScrollTime = performance.now();
+          autoScrollRaf = requestAnimationFrame(smoothAutoScrollLoop);
         }
       }, 4500);
     }
